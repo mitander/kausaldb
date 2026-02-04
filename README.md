@@ -1,6 +1,6 @@
 # kausaldb
 
-[![CI Status](https://github.com/kausaldb/kausaldb/actions/workflows/ci.yml/badge.svg)](https://github.com/kausaldb/kausaldb/actions)
+[![CI Status](https://github.com/mitander/kausaldb/actions/workflows/ci.yml/badge.svg)](https://github.com/mitander/kausaldb/actions)
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > Code is a graph. Query it. Fast.

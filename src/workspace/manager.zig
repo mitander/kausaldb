@@ -322,19 +322,38 @@ pub const WorkspaceManager = struct {
     fn serialize_workspace_config(self: *WorkspaceManager) ![]u8 {
         var json_buffer = std.ArrayList(u8){};
         defer json_buffer.deinit(self.coordinator.allocator());
+        const allocator = self.coordinator.allocator();
 
-        try json_buffer.appendSlice(self.coordinator.allocator(), "{\"version\":");
-        try json_buffer.writer(self.coordinator.allocator()).print("{}", .{WorkspaceConfig.WORKSPACE_CONFIG_VERSION});
-        try json_buffer.appendSlice(self.coordinator.allocator(), ",\"codebases\":[");
+        try json_buffer.appendSlice(allocator, "{\"version\":");
+        try json_buffer.writer(allocator).print("{}", .{WorkspaceConfig.WORKSPACE_CONFIG_VERSION});
+        try json_buffer.appendSlice(allocator, ",\"codebases\":[");
 
         var iterator = self.linked_codebases.iterator();
         var first = true;
         while (iterator.next()) |entry| {
-            if (!first) try json_buffer.appendSlice(self.coordinator.allocator(), ",");
+            if (!first) try json_buffer.appendSlice(allocator, ",");
             first = false;
 
             const info = entry.value_ptr.*;
-            try json_buffer.writer(self.coordinator.allocator()).print("{{\"name\":\"{s}\",\"path\":\"{s}\",\"linked_timestamp\":{},\"last_sync_timestamp\":{},\"block_count\":{},\"edge_count\":{}}}", .{ info.name, info.path, info.linked_timestamp, info.last_sync_timestamp, info.block_count, info.edge_count });
+            try json_buffer.writer(allocator).print(
+                \\{
+                \\  "name": "{s}",
+                \\  "path": "{s}",
+                \\  "linked_timestamp": {},
+                \\  "last_sync_timestamp": {},
+                \\  "block_count": {},
+                \\  "edge_count": {}
+                \\}
+            ,
+                .{
+                    info.name,
+                    info.path,
+                    info.linked_timestamp,
+                    info.last_sync_timestamp,
+                    info.block_count,
+                    info.edge_count,
+                },
+            );
         }
 
         try json_buffer.appendSlice(self.coordinator.allocator(), "]}");
@@ -351,7 +370,6 @@ pub const WorkspaceManager = struct {
 
         const root = parsed.value.object;
 
-        // Parse version (validate compatibility)
         const version = @as(u32, @intCast(root.get("version").?.integer));
         if (version != WorkspaceConfig.WORKSPACE_CONFIG_VERSION) {
             std.debug.panic("Unsupported workspace config version", .{});
@@ -377,7 +395,6 @@ pub const WorkspaceManager = struct {
 
     /// Ingest a codebase using simple, direct approach following Arena Coordinator pattern
     fn ingest_codebase(self: *WorkspaceManager, codebase_name: []const u8, codebase_path: []const u8) !IngestionStats {
-        // Arena-per-ingestion for O(1) cleanup following KausalDB pattern
         var ingestion_arena = std.heap.ArenaAllocator.init(self.backing_allocator);
         defer ingestion_arena.deinit();
         const coordinator = ArenaCoordinator.init(&ingestion_arena);
@@ -391,17 +408,15 @@ pub const WorkspaceManager = struct {
             .include_tests = false,
         };
 
-        // Direct directory ingestion - simple and explicit
         const result = try ingest_directory.ingest_directory_to_blocks(
             &coordinator,
-            self.backing_allocator, // Use backing allocator for stable structures
+            self.backing_allocator,
             &self.storage_engine.vfs,
             codebase_path,
             codebase_name,
             config,
         );
 
-        // Store blocks directly to storage engine
         for (result.blocks) |block| {
             try self.storage_engine.put_block(block);
         }

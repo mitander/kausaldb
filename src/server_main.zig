@@ -148,9 +148,6 @@ fn print_help() !void {
         \\    kausal-server status                  Check server status
         \\
         \\PID file: /tmp/kausaldb-<port>.pid
-        \\
-        \\For more information, visit: https://github.com/kausaldb/kausaldb
-        \\
     ;
 
     std.debug.print("{s}", .{help_text});
